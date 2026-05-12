@@ -4,3 +4,5 @@ scikit-image>=0.20.0
 networkx>=3.0
 shapely>=2.0.0
 matplotlib>=3.7.0
+streamlit>=1.30.0
+plotly>=5.18.0
