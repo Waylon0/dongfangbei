@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python main.py)",
+      "Bash(where python *)",
+      "Bash(pip show *)",
+      "Bash(\"D:/my anaconda/python.exe\" main.py)",
+      "Bash(python -c ' *)"
+    ]
+  }
+}

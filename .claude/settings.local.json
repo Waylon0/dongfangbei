@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.gs.com.cn)",
+      "WebSearch",
+      "WebFetch(domain:ieco.upc.edu.cn)",
+      "Bash(pip install *)"
+    ]
+  }
+}
