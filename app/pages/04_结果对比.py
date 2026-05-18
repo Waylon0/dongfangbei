@@ -1,4 +1,4 @@
-"""Page 4: 结果对比 — 双参数集并排对比"""
+"""Page 4: 结果对比 — 双参数集并排对比（参数隔离）"""
 
 import sys
 from pathlib import Path
@@ -9,11 +9,84 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 
-from app.components.param_controls import (
-    render_param_group, get_config_from_session, reset_params,
-)
+from config import Config
 from app.pipeline.runner import run_pipeline_with_steps
 from app.viz.plotly_figs import fig_comparison
+
+
+def _render_isolated_params(prefix: str, cfg: Config):
+    """渲染一组独立参数控件，使用 prefix 隔离 session_state key。
+
+    返回更新后的 Config 对象。
+    """
+    from app.components.param_controls import PARAM_DEFS
+
+    with st.expander('预处理', expanded=False):
+        for key, label, vmin, vmax, step, default, group in PARAM_DEFS:
+            if group != '预处理':
+                continue
+            current = st.session_state.get(f'{prefix}_{key}', default)
+            if isinstance(default, bool):
+                val = st.toggle(label, value=current, key=f'{prefix}_{key}')
+            elif isinstance(default, float):
+                val = st.slider(label, vmin, vmax, current, step, key=f'{prefix}_{key}')
+            elif isinstance(default, int):
+                val = st.number_input(label, vmin, vmax, current, step, key=f'{prefix}_{key}')
+            setattr(cfg, key, val)
+
+    with st.expander('分割', expanded=False):
+        for key, label, vmin, vmax, step, default, group in PARAM_DEFS:
+            if group != '分割':
+                continue
+            current = st.session_state.get(f'{prefix}_{key}', default)
+            if isinstance(default, bool):
+                val = st.toggle(label, value=current, key=f'{prefix}_{key}')
+            elif isinstance(default, float):
+                val = st.slider(label, vmin, vmax, current, step, key=f'{prefix}_{key}')
+            elif isinstance(default, int):
+                val = st.number_input(label, vmin, vmax, current, step, key=f'{prefix}_{key}')
+            setattr(cfg, key, val)
+
+    with st.expander('提取', expanded=False):
+        for key, label, vmin, vmax, step, default, group in PARAM_DEFS:
+            if group != '提取':
+                continue
+            current = st.session_state.get(f'{prefix}_{key}', default)
+            if isinstance(default, bool):
+                val = st.toggle(label, value=current, key=f'{prefix}_{key}')
+            elif isinstance(default, float):
+                val = st.slider(label, vmin, vmax, current, step, key=f'{prefix}_{key}')
+            elif isinstance(default, int):
+                val = st.number_input(label, vmin, vmax, current, step, key=f'{prefix}_{key}')
+            setattr(cfg, key, val)
+
+    with st.expander('追踪', expanded=False):
+        for key, label, vmin, vmax, step, default, group in PARAM_DEFS:
+            if group != '追踪':
+                continue
+            current = st.session_state.get(f'{prefix}_{key}', default)
+            if isinstance(default, bool):
+                val = st.toggle(label, value=current, key=f'{prefix}_{key}')
+            elif isinstance(default, float):
+                val = st.slider(label, vmin, vmax, current, step, key=f'{prefix}_{key}')
+            elif isinstance(default, int):
+                val = st.number_input(label, vmin, vmax, current, step, key=f'{prefix}_{key}')
+            setattr(cfg, key, val)
+
+    with st.expander('简化/过滤', expanded=False):
+        for key, label, vmin, vmax, step, default, group in PARAM_DEFS:
+            if group not in ('简化', '过滤'):
+                continue
+            current = st.session_state.get(f'{prefix}_{key}', default)
+            if isinstance(default, bool):
+                val = st.toggle(label, value=current, key=f'{prefix}_{key}')
+            elif isinstance(default, float):
+                val = st.slider(label, vmin, vmax, current, step, key=f'{prefix}_{key}')
+            elif isinstance(default, int):
+                val = st.number_input(label, vmin, vmax, current, step, key=f'{prefix}_{key}')
+            setattr(cfg, key, val)
+
+    return cfg
 
 
 def main():
@@ -26,41 +99,25 @@ def main():
 
     st.markdown('### 📊 参数集配置')
 
-    # 双栏参数
     col_a, col_b = st.columns(2)
 
     with col_a:
         st.markdown('#### 🔵 参数集 A')
-
-        if 'param_a_results' not in st.session_state:
-            st.session_state['param_a_results'] = None
-
-        with st.expander('预处理', expanded=False):
-            render_param_group('预处理')
-            # 用唯一 key 模拟独立参数（简化处理）
-        with st.expander('分割/提取/过滤', expanded=False):
-            render_param_group('分割')
-            render_param_group('提取')
-            render_param_group('简化')
-            render_param_group('过滤')
+        cfg_a = Config()
+        cfg_a = _render_isolated_params('cmp_a', cfg_a)
 
         if st.button('▶️ 运行 A', type='primary', use_container_width=True):
-            cfg = get_config_from_session()
             with st.spinner('追踪 A...'):
-                st.session_state['param_a_results'] = run_pipeline_with_steps(data, cfg)
+                st.session_state['param_a_results'] = run_pipeline_with_steps(data, cfg_a)
 
     with col_b:
         st.markdown('#### 🟣 参数集 B')
-
-        if 'param_b_results' not in st.session_state:
-            st.session_state['param_b_results'] = None
-
-        st.info('💡 修改上方参数后点击运行 B，系统将使用当前的参数值')
+        cfg_b = Config()
+        cfg_b = _render_isolated_params('cmp_b', cfg_b)
 
         if st.button('▶️ 运行 B', type='primary', use_container_width=True):
-            cfg = get_config_from_session()
             with st.spinner('追踪 B...'):
-                st.session_state['param_b_results'] = run_pipeline_with_steps(data, cfg)
+                st.session_state['param_b_results'] = run_pipeline_with_steps(data, cfg_b)
 
     # 对比展示
     result_a = st.session_state.get('param_a_results')
@@ -75,14 +132,12 @@ def main():
         areas_a = result_a.get('areas', [])
         areas_b = result_b.get('areas', [])
 
-        # 并排图
         fig = fig_comparison(
             data, poly_a, poly_b,
             label_a='Param Set A', label_b='Param Set B',
         )
         st.plotly_chart(fig, use_container_width=True, key='compare_fig')
 
-        # 差异统计
         st.markdown('### 📊 差异统计')
         c1, c2, c3, c4, c5 = st.columns(5)
         with c1:
@@ -99,7 +154,6 @@ def main():
             st.metric('A 耗时', f"{result_a.get('elapsed', 0):.3f}s",
                      delta=f'{delta_time:+.3f}s')
 
-        # 面积对比表
         df = pd.DataFrame({
             '指标': ['数量', '最小面积', '最大面积', '平均面积', '中位数面积'],
             '参数集 A': [
@@ -121,8 +175,6 @@ def main():
 
     elif result_a is not None:
         st.info('参数集 A 已就绪，请运行参数集 B')
-        fig = fig_comparison(data, poly_a, [], label_a='A', label_b='B (pending)')
-        st.plotly_chart(fig, use_container_width=True, key='compare_a_only')
     elif result_b is not None:
         st.info('参数集 B 已就绪，请运行参数集 A')
 

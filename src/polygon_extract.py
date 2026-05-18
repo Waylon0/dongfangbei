@@ -58,11 +58,12 @@ def extract_fault_polygons(binary_mask: np.ndarray,
 def _separate_intersecting_faults(region: np.ndarray) -> List[np.ndarray]:
     """在骨架交叉点处分离连在一起的断层区域。
 
-    思路：
-    1. 对区域做骨架化
-    2. 找到度数>=3的交叉点
-    3. 在交叉点周围断开，分离出子区域
-    4. 对每个子区域做膨胀恢复原宽度
+    改进：用方向聚类代替粗暴删除交叉点像素。
+    1. 骨架化 → 找交叉点
+    2. 在交叉点断开骨架，得到独立片段
+    3. 对每个片段估算走向
+    4. 按走向聚类：方向一致的片段归为同一断层
+    5. 每组片段膨胀回原区域
     """
     skel = skeletonize(region)
     junctions = _find_junction_points(skel)
@@ -70,33 +71,125 @@ def _separate_intersecting_faults(region: np.ndarray) -> List[np.ndarray]:
     if len(junctions) == 0:
         return [region]
 
-    # 在交叉点处断开
-    skel_split = skel.copy()
+    # 在交叉点处断开骨架
+    skel_split = skel.copy().astype(np.uint8)
     h, w = skel.shape
     for r, c in junctions:
-        for dr in range(-3, 4):
-            for dc in range(-3, 4):
+        skel_split[r, c] = 0
+        for dr in range(-1, 2):
+            for dc in range(-1, 2):
                 rr, cc = r + dr, c + dc
                 if 0 <= rr < h and 0 <= cc < w:
-                    skel_split[rr, cc] = 0
+                    if (rr, cc) in set(map(tuple, junctions)):
+                        skel_split[rr, cc] = 0
 
-    # 从断开的骨架膨胀恢复区域
-    from scipy.ndimage import distance_transform_edt
-    from skimage.morphology import disk
-
-    # 对每段骨架单独膨胀并mask回原区域
+    # 连通域标记 → 独立片段
     labeled_skel, n = label(skel_split)
-    sub_regions = []
+    if n < 2:
+        return [region]
+
+    # 估算每段走向
+    segment_dirs = []
+    segment_masks = []
     for skel_id in range(1, n + 1):
         skel_part = (labeled_skel == skel_id)
         if skel_part.sum() < 5:
+            segment_dirs.append(None)
+            segment_masks.append(skel_part)
             continue
-        # 膨胀骨架
-        dilated = _dilate_to_original(skel_part, region)
+        direction = _estimate_skeleton_direction(skel_part)
+        segment_dirs.append(direction)
+        segment_masks.append(skel_part)
+
+    # 按方向聚类
+    valid = [(i, d) for i, d in enumerate(segment_dirs) if d is not None]
+    if len(valid) < 2:
+        # 不足2个有效方向，回退到简单膨胀
+        sub_regions = []
+        for skel_id in range(1, n + 1):
+            skel_part = (labeled_skel == skel_id)
+            if skel_part.sum() < 5:
+                continue
+            dilated = _dilate_to_original(skel_part, region)
+            if dilated.sum() > 5:
+                sub_regions.append(dilated)
+        return sub_regions if sub_regions else [region]
+
+    # 贪心聚类：方向夹角 < 45° 的片段归为一组
+    groups = _cluster_by_direction(segment_masks, segment_dirs)
+
+    # 每组片段膨胀回原区域
+    sub_regions = []
+    for group in groups:
+        combined_skel = np.zeros_like(skel, dtype=bool)
+        for idx in group:
+            combined_skel |= segment_masks[idx]
+        if combined_skel.sum() < 5:
+            continue
+        dilated = _dilate_to_original(combined_skel, region)
         if dilated.sum() > 5:
             sub_regions.append(dilated)
 
     return sub_regions if sub_regions else [region]
+
+
+def _estimate_skeleton_direction(skel_part: np.ndarray) -> np.ndarray:
+    """估算骨架片段的主方向（PCA），返回单位方向向量 (dr, dc)"""
+    coords = np.argwhere(skel_part)  # (N, 2) [row, col]
+    if len(coords) < 5:
+        return None
+    centered = coords - coords.mean(axis=0)
+    cov = np.cov(centered[:, 1], centered[:, 0])  # (col, row) -> (x, y)
+    eigenvalues, eigenvectors = np.linalg.eigh(cov)
+    principal = eigenvectors[:, -1]
+    direction = np.array([principal[1], principal[0]])  # 转回 (row, col)
+    norm = np.linalg.norm(direction)
+    return direction / norm if norm > 1e-10 else None
+
+
+def _cluster_by_direction(segment_masks: list, segment_dirs: list,
+                           angle_threshold: float = 45.0) -> list:
+    """按方向对片段做贪心聚类。返回 [[idx, ...], ...]"""
+    n = len(segment_masks)
+    # 每个片段初始独立成组
+    parent = list(range(n))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+
+    for i in range(n):
+        if segment_dirs[i] is None:
+            continue
+        for j in range(i + 1, n):
+            if segment_dirs[j] is None:
+                continue
+            # 检查片段是否在空间上相邻（膨胀后重叠）
+            from scipy.ndimage import binary_dilation
+            dilated_i = binary_dilation(segment_masks[i], disk(3))
+            dilated_j = binary_dilation(segment_masks[j], disk(3))
+            if not (dilated_i & dilated_j).any():
+                continue
+            # 方向一致性
+            dot = abs(np.dot(segment_dirs[i], segment_dirs[j]))
+            angle = np.degrees(np.arccos(np.clip(dot, 0, 1)))
+            if angle < angle_threshold:
+                union(i, j)
+
+    # 收集分组
+    groups_dict = {}
+    for i in range(n):
+        root = find(i)
+        groups_dict.setdefault(root, []).append(i)
+
+    return list(groups_dict.values())
 
 
 def _dilate_to_original(skel_part: np.ndarray,

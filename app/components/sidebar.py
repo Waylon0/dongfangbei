@@ -118,12 +118,12 @@ def _render_param_section():
         ('🔧 预处理参数', '预处理'),
         ('✂️ 分割参数', '分割'),
         ('🔍 提取参数', '提取'),
+        ('🔗 追踪参数', '追踪'),
         ('📐 简化/过滤', '简化'),
     ]
     for label, group_name in groups:
         with st.expander(label, expanded=(group_name == '分割')):
             render_param_group(group_name)
-            # 过滤参数附加在简化组后面
             if group_name == '简化':
                 render_param_group('过滤')
 

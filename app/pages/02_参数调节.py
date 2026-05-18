@@ -35,6 +35,8 @@ def main():
             render_param_group('分割')
         with st.expander('🔍 提取', expanded=True):
             render_param_group('提取')
+        with st.expander('🔗 追踪', expanded=False):
+            render_param_group('追踪')
         with st.expander('📐 简化/过滤', expanded=True):
             render_param_group('简化')
             render_param_group('过滤')

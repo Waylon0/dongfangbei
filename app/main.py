@@ -271,8 +271,6 @@ def _render_results_summary(data: np.ndarray, result: dict):
 
     st.caption('💡 切换到上方页面标签查看更多：分步演示 / 参数调节 / 交互探索 / 结果对比')
 
-    st.caption('💡 切换到上方页面标签查看更多功能：分步演示 / 参数调节 / 交互探索 / 结果对比')
-
 
 if __name__ == '__main__':
     main()

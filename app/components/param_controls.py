@@ -9,6 +9,9 @@ PARAM_DEFS = [
     ('clahe_clip_limit', 'CLAHE clip limit', 0.5, 5.0, 0.5, 2.0, '预处理'),
     ('clahe_grid_size', 'CLAHE grid size', 4, 32, 4, 8, '预处理'),
     ('otsu_scale', 'Otsu 阈值缩放', 0.2, 3.0, 0.1, 1.0, '分割'),
+    ('use_adaptive_threshold', '局部自适应阈值', None, None, None, False, '分割'),
+    ('adaptive_block_size', '自适应窗口大小', 11, 99, 2, 35, '分割'),
+    ('adaptive_c', '自适应偏移常数', -0.1, 0.2, 0.01, 0.0, '分割'),
     ('closing_radius', '闭运算半径', 0, 20, 1, 5, '分割'),
     ('opening_radius', '开运算半径', 0, 15, 1, 2, '分割'),
     ('min_component_area', '最小连通域面积', 10, 500, 10, 100, '提取'),
@@ -17,6 +20,11 @@ PARAM_DEFS = [
     ('dp_epsilon', 'DP 简化容差', 0.5, 10.0, 0.5, 3.0, '简化'),
     ('smooth_iterations', 'Chaikin 平滑迭代', 0, 8, 1, 2, '简化'),
     ('min_polygon_area', '最小多边形面积', 10.0, 500.0, 10.0, 50.0, '过滤'),
+    ('track_max_link_distance', '追踪最大连接距离', 5.0, 80.0, 5.0, 30.0, '追踪'),
+    ('track_angle_weight', '追踪方向权重', 0.5, 5.0, 0.5, 2.0, '追踪'),
+    ('track_min_segment_length', '追踪最小片段长度', 3, 50, 1, 10, '追踪'),
+    ('track_dilate_radius', '追踪膨胀半径', 1, 8, 1, 3, '追踪'),
+    ('track_dilate_iterations', '追踪膨胀迭代', 1, 15, 1, 5, '追踪'),
 ]
 
 
