@@ -20,7 +20,7 @@
             <span class="param-label">{{ LABELS[key] }}</span>
             <el-input-number
               :model-value="Number(paramsStore[key])"
-              @update:model-value="val => paramsStore.setParam(key, val)"
+              @update:model-value="(val: number | undefined) => paramsStore.setParam(key, val as number)"
               :min="paramRange(key)[0]"
               :max="paramRange(key)[1]"
               :step="paramStep(key)"
