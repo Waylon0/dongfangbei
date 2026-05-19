@@ -2,19 +2,21 @@
 
 import sys
 import json
+import os
+import tempfile
 import time
 from pathlib import Path
 from typing import Optional
 
 import numpy as np
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from config import Config
-from src.preprocess import normalize
+from src.preprocess import normalize, load_attribute_data
 from src.segment import segment_fault_regions
 from src.polygon_extract import extract_fault_polygons
 from src.vectorize import simplify_polygon, filter_by_area, polygon_area
@@ -260,3 +262,39 @@ def generate_data(req: GenerateRequest):
         'min': float(data.min()),
         'max': float(data.max()),
     }
+
+
+@router.post("/api/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """上传 .dat / .npy / .npz 属性文件，返回解析后的 2D 数组"""
+    filename = file.filename or ''
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ('.dat', '.npy', '.npz'):
+        raise HTTPException(400, f"不支持的文件格式: {ext}，请上传 .dat / .npy / .npz")
+
+    content = await file.read()
+
+    if ext == '.dat':
+        # .dat 是文本格式，需要用 load_attribute_data 解析（它只接受文件路径）
+        suffix = '.dat'
+        mode = 'w'
+        write_content = content.decode('utf-8')
+    else:
+        suffix = ext
+        mode = 'wb'
+        write_content = content
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, mode=mode) as tmp:
+        tmp_path = tmp.name
+        tmp.write(write_content)
+
+    try:
+        data = load_attribute_data(tmp_path)
+        return {
+            'data': _serialize_array(data),
+            'shape': list(data.shape),
+            'min': float(data.min()),
+            'max': float(data.max()),
+        }
+    finally:
+        os.unlink(tmp_path)

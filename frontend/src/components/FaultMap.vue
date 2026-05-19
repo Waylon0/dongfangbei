@@ -104,8 +104,8 @@ function buildOption(): echarts.EChartsOption {
 
   return {
     grid: { left: 0, right: 0, top: 0, bottom: 0 },
-    xAxis: { type: 'category', data: xCats, show: false, boundaryGap: false },
-    yAxis: { type: 'category', data: yCats, show: false, boundaryGap: false, inverse: true },
+    xAxis: { type: 'category', data: xCats, show: false, boundaryGap: true },
+    yAxis: { type: 'category', data: yCats, show: false, boundaryGap: true, inverse: true },
     visualMap: props.layer === 'binary'
       ? { min: 0, max: 1, inRange: { color: ['#0F172A', '#F8FAFC'] }, show: false }
       : { min: 0, max: 1, inRange: { color: ['#0F172A', '#2563EB', '#60A5FA', '#BFDBFE', '#F8FAFC'] }, show: false },

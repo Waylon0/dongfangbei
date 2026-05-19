@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { PipelineResult } from '@/types'
-import { runPipeline, generateData } from '@/api/pipeline'
+import { runPipeline, generateData, uploadFile } from '@/api/pipeline'
 import { useParamsStore } from './params'
 import { ElMessage } from 'element-plus'
 
@@ -23,6 +23,21 @@ export const useDataStore = defineStore('data', () => {
       ElMessage.success(`数据已生成 ${res.shape[0]} x ${res.shape[1]}`)
     } catch (e: any) {
       ElMessage.error(`生成失败: ${e.message}`)
+    } finally {
+      running.value = false
+    }
+  }
+
+  async function upload(file: File) {
+    running.value = true
+    try {
+      const res = await uploadFile(file)
+      rawData.value = res.data
+      dataShape.value = res.shape
+      result.value = null
+      ElMessage.success(`已加载 ${file.name} — ${res.shape[0]} x ${res.shape[1]}`)
+    } catch (e: any) {
+      ElMessage.error(`上传失败: ${e.message}`)
     } finally {
       running.value = false
     }
@@ -59,6 +74,6 @@ export const useDataStore = defineStore('data', () => {
   return {
     rawData, dataShape, result, running,
     hasData, hasResult,
-    generate, execute, clearResult, clearAll,
+    generate, upload, execute, clearResult, clearAll,
   }
 })

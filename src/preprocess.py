@@ -6,12 +6,47 @@ from skimage import exposure
 from .utils import normalize
 
 
+def _load_dat(filepath: str) -> np.ndarray:
+    """解析 GeoEast 导出的 ASCII .dat 格式属性网格文件。
+
+    格式：空格分隔，首行为 # 注释头，后续每行：
+    Line  CMP  X  Y  Value
+    根据 Line 和 CMP 的唯一个数构建规则网格，Value 填充到对应位置。
+    """
+    with open(filepath, 'r') as f:
+        lines = f.readlines()
+
+    # 跳过注释头
+    rows_data = []
+    for line in lines:
+        if line.startswith('#'):
+            continue
+        parts = line.strip().split()
+        if len(parts) < 5:
+            continue
+        rows_data.append((int(parts[0]), int(parts[1]), float(parts[4])))
+
+    # 确定网格维度
+    lines_vals = sorted(set(r[0] for r in rows_data))
+    cmps_vals = sorted(set(r[1] for r in rows_data))
+    line_to_idx = {v: i for i, v in enumerate(lines_vals)}
+    cmp_to_idx = {v: i for i, v in enumerate(cmps_vals)}
+
+    data = np.zeros((len(lines_vals), len(cmps_vals)), dtype=np.float64)
+    for line, cmp, val in rows_data:
+        data[line_to_idx[line], cmp_to_idx[cmp]] = val
+
+    return data
+
+
 def load_attribute_data(filepath: str) -> np.ndarray:
-    """加载沿层属性数据。支持 .npy / .npz 格式。
+    """加载沿层属性数据。支持 .npy / .npz / .dat 格式。
 
     输入数据预期为2D numpy数组，形状 (rows, cols)，
     每个像素值代表该位置的断层响应强度。
     """
+    if filepath.endswith('.dat'):
+        return _load_dat(filepath)
     if filepath.endswith('.npz'):
         data = np.load(filepath)
         key = list(data.keys())[0]

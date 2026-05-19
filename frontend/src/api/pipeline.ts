@@ -15,6 +15,16 @@ export async function runPipeline(
   return res.data
 }
 
+/** 上传属性文件 (.dat/.npy/.npz)，返回解析后的数据 */
+export async function uploadFile(file: File): Promise<GeneratedData> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await api.post<GeneratedData>('/upload', formData, {
+    timeout: 60000,
+  })
+  return res.data
+}
+
 /** 生成合成测试数据 */
 export async function generateData(
   rows = 300,

@@ -6,6 +6,27 @@
       <div class="accent-line"></div>
     </div>
 
+    <nav class="nav-links">
+      <router-link to="/pipeline" class="nav-item" active-class="nav-item--active">
+        <span class="nav-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+        </span>
+        分步流水线
+      </router-link>
+      <router-link to="/explore" class="nav-item" active-class="nav-item--active">
+        <span class="nav-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        交互探索
+      </router-link>
+      <router-link to="/compare" class="nav-item" active-class="nav-item--active">
+        <span class="nav-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        </span>
+        结果对比
+      </router-link>
+    </nav>
+
     <div class="section">
       <h3 class="section-title">数据源</h3>
       <div class="data-source">
@@ -38,9 +59,12 @@
         :auto-upload="false"
         :show-file-list="false"
         accept=".npy,.npz,.dat"
+        :on-change="handleFileChange"
         style="width:100%"
       >
-        <el-button style="width:100%">上传文件 (.npy/.npz/.dat)</el-button>
+        <el-button :loading="dataStore.running" style="width:100%">
+          {{ dataStore.running ? '加载中...' : '上传文件 (.npy/.npz/.dat)' }}
+        </el-button>
       </el-upload>
       <div v-if="dataStore.hasData" class="data-status">
         <span class="status-dot"></span>
@@ -71,9 +95,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useDataStore } from '@/stores/data'
 import { useParamsStore } from '@/stores/params'
 import ParamPanel from './ParamPanel.vue'
+import type { UploadFile, UploadRawFile } from 'element-plus'
 
 const dataStore = useDataStore()
 const paramsStore = useParamsStore()
@@ -86,6 +112,17 @@ const genSeed = ref(42)
 
 function handleGenerate() {
   dataStore.generate(genRows.value, genCols.value, genFaults.value, genNoise.value, genSeed.value)
+}
+
+function handleFileChange(file: UploadFile) {
+  const raw = file.raw as UploadRawFile
+  if (!raw) return
+  const ext = '.' + raw.name.split('.').pop()?.toLowerCase()
+  if (!['.dat', '.npy', '.npz'].includes(ext)) {
+    ElMessage.error(`不支持的文件格式 ${ext}`)
+    return
+  }
+  dataStore.upload(raw)
 }
 </script>
 
@@ -183,6 +220,46 @@ function handleGenerate() {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+}
+
+.nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 12px;
+  margin-bottom: 4px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #475569;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.nav-item:hover {
+  background: #E2E8F0;
+  color: #1E293B;
+}
+
+.nav-item--active {
+  background: #DBEAFE;
+  color: #2563EB;
+  font-weight: 600;
+}
+
+.nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
 .sidebar-footer {
